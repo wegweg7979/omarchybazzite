@@ -27,7 +27,7 @@ else
 fi
 
 # 2) Switch to the new image AFTER user setup.
-bootc switch --mutate-in-place --transport registry ghcr.io/wegweg7979/hurunagus-hyprland:latest
+bootc switch --mutate-in-place --transport registry ghcr.io/wegweg7979/omarchybazzite:latest
 
 # 3) Clean up the first-boot service so we do not double-provision.
 systemctl disable add-default-user-groups.service 2>/dev/null || true
