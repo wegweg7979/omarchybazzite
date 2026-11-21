@@ -23,6 +23,43 @@ echo "::group:: Installing build tooling"
 dnf5 install -y dnf5-plugins python3
 echo "::endgroup::"
 
+# ---------------------------------------------------------------------------
+# Bazzite-only: undo the one terra replacement the Omarchy stack cannot live with
+# ---------------------------------------------------------------------------
+# The Bazzite base ships a "terra" overlay: newer rebuilds of a few Fedora
+# packages (Xwayland, wireplumber, bluez, gamescope, mangohud) that each carry
+# `Conflicts:` against the Fedora package they replace, so Fedora's cannot be
+# co-installed beside them.
+#
+# That overlay collides with this image's payload in three places, and they are
+# NOT the same kind of problem:
+#
+#   * xorg-x11-server-Xwayland  -- HARD requirement, fixed here. hyprland-no-session
+#     (from the Omedora COPR) requires the arch-qualified capability
+#     xorg-x11-server-Xwayland(x86-64). terra's package provides only the
+#     unqualified name, so with Bazzite's Xwayland installed the requirement has
+#     no installable provider and `dnf5 install omedora` below fails outright:
+#         hyprland-no-session-0.56.2-1.fc45.x86_64 requires
+#         xorg-x11-server-Xwayland(x86-64), but none of the providers can be
+#         installed
+#     The only provider of that capability is Fedora's own package, so it goes
+#     back in. Measured: this erases terra's Xwayland ALONE -- kwin,
+#     plasma-workspace and terra-gamescope all require the plain
+#     `xorg-x11-server-Xwayland`, which Fedora's package satisfies.
+#
+#   * wireplumber, bluez        -- duplicates, not requirements. Omarchy's list
+#     names them, the terra builds provide the same capabilities
+#     (pipewire-session-manager, the bluez daemon), so this image keeps Bazzite's
+#     builds and stops asking for Fedora's. Those two names are in
+#     EXCLUDED_PACKAGES below, not swapped here.
+echo "::group:: Restoring Fedora's Xwayland over Bazzite's terra build"
+if rpm -q terra-xorg-x11-server-Xwayland >/dev/null 2>&1; then
+    dnf5 install -y --allowerasing xorg-x11-server-Xwayland
+else
+    echo "terra-xorg-x11-server-Xwayland is not installed; nothing to replace"
+fi
+echo "::endgroup::"
+
 echo "::group:: Enabling the Omedora COPR"
 dnf5 -y copr enable wegweg7979/omedora-4
 # Deliberately left enabled: omedora's package helpers use this repo for
@@ -110,6 +147,24 @@ EXCLUDED_PACKAGES=(
     # BUILT image, never on the resolver output.
     google-noto-sans-cjk-fonts
     google-noto-serif-cjk-fonts
+    # Bazzite-only. The base replaces these two with terra rebuilds
+    # (terra-wireplumber, terra-bluez) that carry `Conflicts:` against the Fedora
+    # packages, so asking for Fedora's aborts the entire install transaction:
+    #     installed package terra-bluez-5.87+1.git...-2.fc45.x86_64 conflicts
+    #     with bluez provided by bluez-5.88-1.fc45.x86_64 from updates
+    # Neither name is a *requirement* of anything here -- omarchy's list wants a
+    # PipeWire session manager and the bluez daemon, and the terra builds provide
+    # exactly those capabilities (pipewire-session-manager, bluez) -- so this
+    # image keeps Bazzite's newer builds and simply stops asking for Fedora's.
+    # Excluding them is also why nothing else in the list drags Fedora's
+    # bluez-libs/wireplumber-libs back in (measured: a full transaction resolve
+    # with both excluded reports no conflicts).
+    #
+    # Xwayland is NOT here: hyprland-no-session hard-requires
+    # xorg-x11-server-Xwayland(x86-64), which only Fedora's package provides, so
+    # phase_base swaps that one back (see the terra block at the top of it).
+    wireplumber
+    bluez
 )
 
 filtered_packages=()
