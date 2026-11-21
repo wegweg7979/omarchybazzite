@@ -1,81 +1,61 @@
-# hurunagus-hyprland
-<img width="960" height="540" alt="screenshot-2026-11-20_21-01-44-foot" src="https://github.com/user-attachments/assets/569a355a-5d86-4449-90dd-6f42d5a9d9f2" />
+# OmarchyBazzite
 
+Declarative, atomic, immutable Fedora with the **Omarchy** (Hyprland) desktop, built on the **Bazzite** base image.
 
-Declarative, atomic, immutable Linux system. Fedora Silverblue, Omarchy desktop, Cachyos kernel , automatic weekly updates and all the
-apps I need preinstalled. It is fedora, but it is omarchy, but its Cachyos....
+A clone of [hurunagus-hyprland](https://github.com/wegweg7979/hurunagus-hyprland) with one thing changed: the base image.
 
-Reason to exist: making all my computers run identical systems, administered in
-one place, from a single config. Automatic builds once a week, silently applied in the background and ready on reboot.
-Stability of Fedora. Immutability and build process of Silverblue. Omarchy bling. Cachyos performance. Batteries included from Universal Blue.
-The best of Linux in one distro. 
+| | base |
+|---|---|
+| hurunagus-hyprland | `ghcr.io/ublue-os/base-main:latest` — Universal Blue's minimal core, no desktop |
+| **OmarchyBazzite** | `ghcr.io/ublue-os/bazzite:latest` — Bazzite: KDE Plasma 6 + the Universal Blue gaming stack |
 
+Everything built on top is the hurunagus-hyprland payload, unchanged: the Omarchy runtime (Omedora, forked for immutable Fedora), the CachyOS kernel swap, Secure Boot signing of that kernel, the SDDM Omarchy theme with its user picker, the Hurunagus settings payload, and the baked apps (huruwave, airgraph, huru-calendar, hyprglaze, flea, icloud-for-omarchy, rclone, hermes) plus the system flatpak list.
 
-- Omarchy ported to Fedora (Omedora).
-- Omedora forked and modified to function correctly on immutable Fedora (rpm-ostree / bootc).
-- CachyOS kernel — from the official CachyOS Fedora port: x86_64-v3 only.
-- Secure boot compatible (Enroll the key).
-- Omarchy Agent skills modified to fit immutable fedora.
-- SDDM user picker — the Omarchy login theme with added user picker for multi-user systems.
-- iCloud Photos, iCloud drive, iCloud calendar ready to log in.
-- Google drive ready to login.
-- Hyprglaze shader wallpaper- ported to fedora, menu bar widget controls.
-- Huruwave - Apple music and Youtube music player (paid accounts with those services required)- browser sign in needed. 
-- Pre-install list of flatpak software.
-- Hermes agent and opencode ready.
-- Btrfs maintenance - monthly checking.
+## What the base change actually drags in
 
-Dont use this —you can make your own, it is not too difficult and quite fun.
-https://github.com/ublue-os/image-template
+- **KDE Plasma is installed.** Bazzite derives from `kinoite-main`, so Plasma 6, kwin and the Plasma packages are all present. Its `plasma.desktop` session is removed by the build, so the only session SDDM offers is the Omarchy/Hyprland one.
+- **plasmalogin → SDDM.** Bazzite's display manager is `plasma-login-manager`; this image installs SDDM and takes the `display-manager.service` alias over, exactly as on hurunagus-hyprland.
+- **The gaming stack comes along.** Steam, gamescope, distrobox, MangoHud, Bazzite's first-boot services (`bazzite-hardware-setup`, `bazzite-flatpak-manager`) and its `ujust` recipes are inherited.
+- **Bazzite's kernel is replaced.** The base ships `kernel-*-ogc*.fc45`; the kernel phase swaps in `kernel-cachyos` and generates its initramfs. Bazzite's ~28 out-of-tree `kmod-*` packages are built against the ogc kernel, so they go with it — they cannot load into a CachyOS kernel.
 
-Be aware installed apps and features will be added or removed as I see fit at
-anytime. Hence the warning to not consider this a "stable" OS for anyone except
-myself. It is, despite that, a rock solid, efficient and fully featured operating
-system suitable for multimedia and modern computing in 2026. I need my computer to work properly, and this does "just work". If you are the admin
-for more than one machine, you should really take the time to make your own for
-exactly YOUR needs.
+## Install (rebase)
 
+```sh
+# 1. rebase to the unsigned image, to get the signing keys and policies installed
+rpm-ostree rebase ostree-unverified-registry:ghcr.io/wegweg7979/omarchybazzite:latest
 
-- First rebase to the unsigned image, to get the proper signing keys and policies
-  installed:
-  ```sh
-  rpm-ostree rebase ostree-unverified-registry:ghcr.io/wegweg7979/hurunagus-hyprland:latest
-  ```
-- Reboot to complete the rebase:
-  ```sh
-  systemctl reboot
-  ```
-- Then rebase to the signed image, like so:
-  ```sh
-  rpm-ostree rebase ostree-image-signed:docker://ghcr.io/wegweg7979/hurunagus-hyprland:latest
-  ```
-- Reboot again to complete the installation:
-  ```sh
-  systemctl reboot
-  ```
+# 2. reboot to complete the rebase
+systemctl reboot
 
+# 3. rebase to the signed image
+rpm-ostree rebase ostree-image-signed:docker://ghcr.io/wegweg7979/omarchybazzite:latest
 
-Your existing `$HOME` is preserved across the rebase — atomic rebases never touch
-it. That means the Omarchy defaults this image ships in `/etc/skel` (dotfiles for
-`~/.config/hypr` and `~/.config/omarchy`, the branding/screensaver files, themes,
-toggles, migration markers) will **not** be seeded into your current user's home.
-To adopt them, run this once **after your first login** on the new system:
+# 4. reboot again
+systemctl reboot
+```
+
+Your existing `$HOME` is preserved across the rebase — atomic rebases never touch it. That means the Omarchy defaults this image ships in `/etc/skel` are **not** seeded into your current user's home. To adopt them, run this once **after your first login**:
 
 ```sh
 omarchy-reinstall-configs
 ```
 
-New users (fresh installs, or accounts created after the rebase) get these
-automatically from `/etc/skel` and do not need this step.
+New users (fresh installs, or accounts created after the rebase) get them automatically.
 
+## Build
 
-<img width="512" height="512" alt="Gemini_Generated_Image_rokat0rokat0roka" src="https://github.com/user-attachments/assets/d0bfbdca-0e15-4e00-a0f9-16cf8704a825" />
+```sh
+just build                # container image
+just build-qcow2          # + bootable disk image (bootc-image-builder)
+```
 
+The build needs network access plus the omedora and app COPRs. Secure Boot signing needs the kernel signing secret (`SB_SIGNING_KEY`); `--build-arg SB_SIGNING=off` is the explicit opt-out PR builds use, and that kernel ships unsigned.
 
 ## References
 
+- Bazzite: https://bazzite.gg — https://github.com/ublue-os/bazzite
 - ublue-os image-template: https://github.com/ublue-os/image-template
 - Omarchy: https://github.com/omacom/omarchy
 - Omedora (omeadora): https://github.com/AndrewGaspar/omadora
-- Original Hurunagus ublue project: https://github.com/wegweg7979/hurunagus-ublue
+- hurunagus-hyprland (this clone's parent): https://github.com/wegweg7979/hurunagus-hyprland
 - hurubase — safe rebase helper: https://github.com/wegweg7979/hurunagus-rebase

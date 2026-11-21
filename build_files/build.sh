@@ -439,12 +439,23 @@ chown -R root:root /usr/share/omarchy/default/sddm/omarchy
 chmod -R go-w /usr/share/omarchy/default/sddm/omarchy
 echo "::endgroup::"
 
+# Session entries: keep this image's session the only one on offer.
+#
 # omedora-settings ships an Omedora session entry and hyprland-no-session ships
-# no session entry; keep Hurunagus as the only Hyprland login session.
+# none, so on base-main these two removals were the whole story.
+#
+# The Bazzite base additionally ships KDE Plasma (kinoite-derived), including
+# /usr/share/wayland-sessions/plasma.desktop. That file HAS to go: the SDDM
+# config this image ships sets RememberLastSession=true and no fixed Session=,
+# so with a second entry present a fresh user's first login lands in Plasma
+# rather than in the Hyprland session this image is for. Removing it leaves
+# hurunagus.desktop as the single session SDDM can offer.
 rm -f \
     /usr/share/wayland-sessions/omedora.desktop \
     /usr/share/wayland-sessions/hyprland.desktop \
-    /usr/share/wayland-sessions/hyprland-uwsm.desktop
+    /usr/share/wayland-sessions/hyprland-uwsm.desktop \
+    /usr/share/wayland-sessions/plasma.desktop \
+    /usr/share/wayland-sessions/plasmax11.desktop
 
 # A unit that is not in the image is skipped on purpose -- docker.socket is
 # requested here while the Docker stack is deliberately excluded from it -- but a

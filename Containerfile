@@ -4,15 +4,41 @@ COPY build_files /
 COPY system_files /system_files
 
 # Base Image
-FROM ghcr.io/ublue-os/base-main:latest
+## SINGLE DIFFERENCE FROM hurunagus-hyprland: the base.
+## hurunagus-hyprland builds on ghcr.io/ublue-os/base-main (ublue's minimal
+## "core" base, no desktop). This image builds on Bazzite, the
+## KDE-Plasma/gaming edition of the same Universal Blue family.
+##
+## Bazzite's own Containerfile derives from ghcr.io/ublue-os/kinoite-main
+## (Fedora 45), so what arrives with this base and NOT with base-main:
+##   * KDE Plasma 6 + kwin, with `plasma.desktop` as a Wayland session
+##   * plasmalogin (plasma-login-manager) as the display manager, so SDDM is
+##     not installed -- build.sh installs it and takes the
+##     display-manager.service alias over
+##   * the gaming stack: Steam, gamescope, distrobox, MangoHud, and ~28
+##     out-of-tree kmod-* packages (v4l2loopback, xone, xpadneo, ...) built
+##     against Bazzite's own kernel
+##   * Bazzite's first-boot services (bazzite-hardware-setup,
+##     bazzite-flatpak-manager, uupd.timer) and its ujust recipe set
+##   * Bazzite's kernel, kernel-<ver>-ogc<n>.fc45, which the kernel phase
+##     below swaps out for kernel-cachyos exactly as on base-main. The kmod-*
+##     packages are built for the ogc kernel, so they go with it -- they cannot
+##     load into a CachyOS kernel.
+##
+## Everything this image does ON TOP of its base is the hurunagus-hyprland
+## payload: the Omarchy runtime (Omedora COPR), the CachyOS kernel swap,
+## Secure Boot signing of that kernel, the SDDM Omarchy theme with the user
+## picker, the Hurunagus settings payload and the baked apps.
+##
+## Fedora line: bazzite:latest tracks Fedora 45 (45.20261117.1 at the time of
+## writing) and the Omedora COPR we install from publishes fedora-44-x86_64 and
+## fedora-45-x86_64 only, so pin a date tag here if you need a reproducible
+## build.
+FROM ghcr.io/ublue-os/bazzite:latest
 ## Other possible base images include:
-# FROM ghcr.io/ublue-os/bazzite:testing
+# FROM ghcr.io/ublue-os/base-main:latest    (what hurunagus-hyprland uses)
+# FROM ghcr.io/ublue-os/bazzite-gnome:latest (the GNOME edition, kinoite -> silverblue)
 # FROM ghcr.io/ublue-os/aurora:stable
-#
-# The Omedora COPR we install from publishes fedora-44-x86_64 and
-# fedora-45-x86_64 only. base-main:latest currently tracks Fedora 45 (the
-# 2026-11-08 build shipped kernel 7.2.15-300.fc45); pin a date tag here if you
-# need a reproducible build.
 #
 # The kernel is NOT the base image's stock Fedora kernel: build.sh swaps in
 # kernel-cachyos (BORE scheduler, 1000 Hz, x86_64-v3) from the bieszczaders
@@ -98,16 +124,30 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     ALL_BUST="${ALL_BUST}" OMEDORA_BUST="${OMEDORA_BUST}" /ctx/build.sh fresh
 
-# Rebrand system identifiers in /usr/lib/os-release
+# Rebrand system identifiers in /usr/lib/os-release.
+#
+# Bazzite's os-release carries more keys than base-main's, and the ones this
+# sed does not match are left as they are on purpose: it is still a Bazzite
+# (kinoite-derived) system underneath, and VERSION ("45.<date>.<n> (Kinoite)")
+# and CPE_NAME describe that honestly. What is rewritten is the identity a user
+# or a tool reads first -- and omarchy-distro keys off ID= plus the
+# /run/ostree-booted marker, which is why ID stays "fedora" here exactly as it
+# does on hurunagus-hyprland (ID=fedora + booted from a deployment ->
+# `fedora-ostree`, the distro token Omedora dispatches on).
+#
+# LOGO is rewritten because Bazzite sets LOGO=bazzite-logo, which would put the
+# Bazzite mark in firmware/plymouth/About surfaces; this image ships omarchy.png
+# in /usr/share/pixmaps, which is what the key resolves against.
 RUN sed -i \
     -e 's/^ID=.*/ID=fedora/' \
     -e 's/^ID_LIKE=.*/ID_LIKE="fedora"/' \
-    -e 's/^NAME=.*/NAME="hurunagus-hyprland"/' \
-    -e 's/^PRETTY_NAME=.*/PRETTY_NAME="hurunagus-hyprland"/' \
-    -e 's/^VERSION_CODENAME=.*/VERSION_CODENAME=hurunagus-hyprland/' \
-    -e 's/^VARIANT=.*/VARIANT="Hurunagus Hyprland"/' \
-    -e 's/^VARIANT_ID=.*/VARIANT_ID=hurunagus-hyprland/' \
-    -e 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME="hurunagus"/' \
+    -e 's/^NAME=.*/NAME="OmarchyBazzite"/' \
+    -e 's/^PRETTY_NAME=.*/PRETTY_NAME="OmarchyBazzite"/' \
+    -e 's/^VERSION_CODENAME=.*/VERSION_CODENAME=omarchybazzite/' \
+    -e 's/^VARIANT=.*/VARIANT="OmarchyBazzite"/' \
+    -e 's/^VARIANT_ID=.*/VARIANT_ID=omarchybazzite/' \
+    -e 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME="omarchybazzite"/' \
+    -e 's/^LOGO=.*/LOGO=omarchy/' \
     /usr/lib/os-release
 
 # Copy custom Flatpak list into the system configuration path. The first-boot
