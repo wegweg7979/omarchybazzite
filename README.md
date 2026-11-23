@@ -4,20 +4,6 @@ Declarative, atomic, immutable Fedora with the **Omarchy** (Hyprland) desktop, b
 
 A clone of [hurunagus-hyprland](https://github.com/wegweg7979/hurunagus-hyprland) with one thing changed: the base image.
 
-| | base |
-|---|---|
-| hurunagus-hyprland | `ghcr.io/ublue-os/base-main:latest` — Universal Blue's minimal core, no desktop |
-| **OmarchyBazzite** | `ghcr.io/ublue-os/bazzite:latest` — Bazzite: KDE Plasma 6 + the Universal Blue gaming stack |
-
-Everything built on top is the hurunagus-hyprland payload, unchanged: the Omarchy runtime (Omedora, forked for immutable Fedora), the CachyOS kernel swap, Secure Boot signing of that kernel, the SDDM Omarchy theme with its user picker, the Hurunagus settings payload, and the baked apps (huruwave, airgraph, huru-calendar, hyprglaze, flea, icloud-for-omarchy, rclone, hermes) plus the system flatpak list.
-
-## What the base change actually drags in
-
-- **KDE Plasma is installed.** Bazzite derives from `kinoite-main`, so Plasma 6, kwin and the Plasma packages are all present. Its `plasma.desktop` session is removed by the build, so the only session SDDM offers is the Omarchy/Hyprland one.
-- **plasmalogin → SDDM.** Bazzite's display manager is `plasma-login-manager`; this image installs SDDM and takes the `display-manager.service` alias over, exactly as on hurunagus-hyprland.
-- **The gaming stack comes along.** Steam, gamescope, distrobox, MangoHud, Bazzite's first-boot services (`bazzite-hardware-setup`, `bazzite-flatpak-manager`) and its `ujust` recipes are inherited.
-- **Bazzite's kernel is replaced.** The base ships `kernel-*-ogc*.fc45`; the kernel phase swaps in `kernel-cachyos` and generates its initramfs. Bazzite's ~28 out-of-tree `kmod-*` packages are built against the ogc kernel, so they go with it — they cannot load into a CachyOS kernel.
-
 ## Install (rebase)
 
 ```sh
