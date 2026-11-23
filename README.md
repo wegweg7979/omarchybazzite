@@ -1,8 +1,6 @@
 # OmarchyBazzite
 
-Declarative, atomic, immutable Fedora with the **Omarchy** (Hyprland) desktop, built on the **Bazzite** base image.
-
-A clone of [hurunagus-hyprland](https://github.com/wegweg7979/hurunagus-hyprland) with one thing changed: the base image.
+Omarchy and Bazzite made a baby. 
 
 ## Install (rebase)
 
